@@ -1,0 +1,247 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Joining components - The Specs Book</title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="Introduction into ECS and the Specs API.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="">
+
+        <link rel="stylesheet" href="book.css">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800" rel="stylesheet" type="text/css">
+        <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro:500" rel="stylesheet" type="text/css">
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme -->
+        
+
+        
+
+        <!-- Fetch Clipboard.js from CDN but have a local fallback -->
+        <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.1/clipboard.min.js"></script>
+        <script>
+            if (typeof Clipboard == 'undefined') {
+                document.write(unescape("%3Cscript src='clipboard.min.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+
+        <!-- Fetch store.js from local - TODO add CDN when 2.x.x is available on cdnjs -->
+        <script src="store.js"></script>
+
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = store.get('mdbook-theme');
+            if (theme === null || theme === undefined) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = store.get('mdbook-sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li><a href="01_intro.html"><strong>1.</strong> Introduction</a></li><li><a href="02_hello_world.html"><strong>2.</strong> Hello World</a></li><li><a href="03_dispatcher.html"><strong>3.</strong> Dispatcher</a></li><li><a href="04_resources.html"><strong>4.</strong> Resources</a></li><li><a href="05_storages.html"><strong>5.</strong> Storages</a></li><li><a href="06_system_data.html"><strong>6.</strong> System Data</a></li><li><a href="07_join.html" class="active"><strong>7.</strong> Joining components</a></li><li><a href="08_parallel_join.html"><strong>8.</strong> Parallel Join</a></li><li><a href="09_rendering.html"><strong>9.</strong> Rendering</a></li><li><strong>10.</strong> Building a game with Specs</li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page" tabindex="-1">
+                
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars" title="Toggle sidebar"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush" title="Change theme"></i>
+                    </div>
+
+                    <h1 class="menu-title">The Specs Book</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html">
+                            <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <a class="header" href="07_join.html#joining-components" id="joining-components"><h1>Joining components</h1></a>
+<p>In the last chapter, we learned how to access resources using <code>SystemData</code>.
+To access our components with it, we can just fetch a <code>ReadStorage</code> and use
+<code>Storage::get</code> to get the component associated to an entity. This works quite
+well if you want to access a single component, but what if you want to
+iterate over many components? Maybe some of them are required, others might
+be optional and maybe there is even a need to exclude some components?
+If we wanted to do that using only <code>Storage::get</code>, the code would become very ugly.
+So instead we worked out a way to conveniently specify that. This concept is
+known as &quot;Joining&quot;.</p>
+<a class="header" href="07_join.html#basic-joining" id="basic-joining"><h2>Basic joining</h2></a>
+<p>We've already seen some basic examples of joining in the last chapters, for
+example we saw how to join over two storages:</p>
+<pre><code class="language-rust ignore">for (pos, vel) in (&amp;mut pos_storage, &amp;vel_storage).join() {
+    *pos += *vel;
+}
+</code></pre>
+<p>This simply iterates over the position and velocity components of
+all entities that have both these components. That means all the
+specified components are <strong>required</strong>.</p>
+<p>Sometimes, we want not only get the components of entities,
+but also the entity value themselves. To do that, we can simply join over
+<code>&amp;EntitiesRes</code>. We can get <code>&amp;EntitiesRes</code> by de-referencing <code>Entities</code>
+and re-referencing the returned value.</p>
+<pre><code class="language-rust ignore">for (ent, pos, vel) in (&amp;*entities, &amp;mut pos_storage, &amp;vel_storage).join() {
+    println!(&quot;Processing entity: {:?}&quot;, ent);
+    *pos += *vel;
+}
+</code></pre>
+<a class="header" href="07_join.html#optional-components" id="optional-components"><h2>Optional components</h2></a>
+<p>If we iterate over the <code>&amp;EntitiesRes</code> as shown above, we can simply
+use the returned <code>Entity</code> values to get components from storages as usual.</p>
+<pre><code class="language-rust ignore">for (ent, pos, vel) in (&amp;*entities, &amp;mut pos_storage, &amp;vel_storage).join() {
+    println!(&quot;Processing entity: {:?}&quot;, ent);
+    *pos += *vel;
+    
+    let mass: Option&lt;&amp;mut Mass&gt; = mass_storage.get_mut(ent);
+    if let Some(mass) = mass {
+        let x = *vel / 300_000_000.0;
+        let y = 1 - x * x;
+        let y = y.sqrt();
+        mass.current = mass.constant / y;
+    }
+}
+</code></pre>
+<p>In this example we iterate over all entities with a position and a velocity
+and perform the calculation for the new position as usual.
+However, in case the entity has a mass, we also calculate the current
+mass based on the velocity. Thus, mass is an <strong>optional</strong> component here.</p>
+<a class="header" href="07_join.html#excluding-components" id="excluding-components"><h2>Excluding components</h2></a>
+<p>If you want to filter your selection by excluding all entities
+with a certain component type, you can use the not operator (<code>!</code>)
+on the respective component storage. Its return value is a unit (<code>()</code>).</p>
+<pre><code class="language-rust ignore">for (ent, pos, vel, ()) in (
+    &amp;*entities,
+    &amp;mut pos_storage,
+    &amp;vel_storage,
+    !&amp;freezed_storage,
+).join() {
+    println!(&quot;Processing entity: {:?}&quot;, ent);
+    *pos += *vel;
+}
+</code></pre>
+<p>This will simply iterate over all entities that</p>
+<ul>
+<li>have a position</li>
+<li>have a velocity</li>
+<li>do not have a <code>Freezed</code> component</li>
+</ul>
+<a class="header" href="07_join.html#how-joining-works" id="how-joining-works"><h2>How joining works</h2></a>
+<p>You can call <code>join()</code> on everything that implements the <code>Join</code> trait.
+The method call always returns an iterator. <code>Join</code> is implemented for</p>
+<ul>
+<li><code>&amp;ReadStorage</code> / <code>&amp;WriteStorage</code> (gives back a reference to the components)</li>
+<li><code>&amp;mut WriteStorage</code> (gives back a mutable reference to the components)</li>
+<li><code>&amp;EntitiesRes</code> (returns <code>Entity</code> values)</li>
+<li>bitsets</li>
+</ul>
+<p>I think the last point here is pretty interesting, because
+it allows for even more flexibility, as you will see in the next
+section.</p>
+<a class="header" href="07_join.html#joining-over-bitsets" id="joining-over-bitsets"><h2>Joining over bitsets</h2></a>
+<p>Specs is using <code>hibitset</code>, a library which provides layered bitsets
+(those were part of Specs once, but it was decided that a separate
+library could be useful for others).</p>
+<p>These bitsets are used with the component storages to determine
+which entities the storage provides a component value for. Also,
+<code>Entities</code> is using bitsets, too. You can even create your
+own bitsets and add or remove entity ids:</p>
+<pre><code class="language-rust ignore">use hibitset::{BitSet, BitSetLike};
+
+let mut bitset = BitSet::new();
+bitset.add(entity1.id());
+bitset.add(entity2.id());
+</code></pre>
+<p><code>BitSet</code>s can be combined using the usual binary operators,
+so <code>&amp;</code>, <code>|</code> and <code>^</code>. Additionally, you can negate them using <code>!</code>.
+This allows you to combine and filter components in multiple ways.</p>
+<hr />
+<p>This chapter has been all about looping over components; but we can do more
+than sequential iteration! Let's look at some parallel code in the next
+chapter.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a rel="prev" href="06_system_data.html" class="mobile-nav-chapters previous" title="Previous chapter">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a rel="next" href="08_parallel_join.html" class="mobile-nav-chapters next" title="Next chapter">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="06_system_data.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="08_parallel_join.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        
+
+        
+
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS script -->
+        
+
+    </body>
+</html>
